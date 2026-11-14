@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">DapurPass</string>
+    <string name="auth_headline">Zero-Mistake Kitchen Pass</string>
+    <string name="auth_subheadline">Replace noisy 7–9 PM voice orders with instant takeaway &amp; dine-in tickets, spice precision, and RM 6 mistake tracking.</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="sign_out">Sign Out</string>
+    <string name="nav_counter">Counter</string>
+    <string name="nav_kitchen">Kitchen Pass</string>
+    <string name="nav_analytics">Analytics</string>
+    <string name="nav_menu">Menu &amp; Store</string>
+    <string name="hero_banner_desc">Family restaurant counter and kitchen pass illustration</string>
+    <string name="empty_kitchen_title">Kitchen pass is clear</string>
+    <string name="empty_kitchen_body">Tap any dish in Counter to send a verified ticket directly to the kitchen without shouting over phone calls.</string>
+    <string name="empty_analytics_title">No quality logs yet</string>
+    <string name="empty_analytics_body">Verify items at the pass or log any post-handoff issue to track RM 6 savings and peak-hour accuracy.</string>
+    <string name="send_to_kitchen">Send to Kitchen Pass</string>
+</resources>

@@ -1,0 +1,6 @@
+{
+  "name": "DapurPass",
+  "description": "Digital kitchen pass, quick-tap takeaway ordering, and mistake analytics for family-run restaurants.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

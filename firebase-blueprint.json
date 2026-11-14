@@ -1,0 +1,213 @@
+{
+  "entities": {
+    "OrderRecord": {
+      "title": "OrderRecord",
+      "description": "A digital kitchen pass ticket replacing voice orders, tracking takeaway vs dine-in type, spice/sauce modifiers, line-item verification, and peak-hour flag.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "ticketNumber": {
+          "type": "string",
+          "description": "Short human-readable ticket code such as #TK-001 or #DI-001."
+        },
+        "orderType": {
+          "type": "string",
+          "enum": ["takeaway", "phone_takeaway", "dine_in"],
+          "description": "Channel distinguishing walk-in takeaway, phone takeaway, and dine-in."
+        },
+        "tableOrPhone": {
+          "type": "string",
+          "description": "Customer phone/name for takeaway or table number for dine-in."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["queued", "cooking", "packed", "completed"],
+          "description": "Current kitchen pass lifecycle state; completed is terminal."
+        },
+        "items": {
+          "type": "array",
+          "description": "Bounded list (1-20) of line items with spice level, sauce option, and packing verification flag."
+        },
+        "totalRm": {
+          "type": "number",
+          "description": "Total order price in Malaysian Ringgit (RM)."
+        },
+        "isPeakHour": {
+          "type": "boolean",
+          "description": "True if order was logged during the 7:00 PM - 9:00 PM dinner rush."
+        },
+        "customerNote": {
+          "type": "string",
+          "description": "Optional special kitchen instruction."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when order was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when order was last updated."
+        }
+      },
+      "required": [
+        "userId",
+        "ticketNumber",
+        "orderType",
+        "tableOrPhone",
+        "status",
+        "items",
+        "totalRm",
+        "isPeakHour",
+        "customerNote",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "QuickMenuItem": {
+      "title": "QuickMenuItem",
+      "description": "Top-10 quick-tap menu dish configured by the family restaurant for rapid one-tap counter entry.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Dish name."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Mains", "Noodles", "Sides", "Drinks"],
+          "description": "Menu category."
+        },
+        "priceRm": {
+          "type": "number",
+          "description": "Unit price in RM."
+        },
+        "defaultSpice": {
+          "type": "string",
+          "enum": ["No Chili", "Mild", "Standard", "Extra Pedas"],
+          "description": "Default spice level."
+        },
+        "defaultSauce": {
+          "type": "string",
+          "enum": ["Standard", "Sambal Separate", "Extra Gravy", "No Sauce"],
+          "description": "Default sauce/sambal preparation."
+        },
+        "sortOrder": {
+          "type": "integer",
+          "description": "Quick-tap grid display order."
+        },
+        "isTopTen": {
+          "type": "boolean",
+          "description": "Whether the item appears in the 10 most common quick-tap items."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when menu item was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when menu item was updated."
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "category",
+        "priceRm",
+        "defaultSpice",
+        "defaultSauce",
+        "sortOrder",
+        "isTopTen",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MistakeLog": {
+      "title": "MistakeLog",
+      "description": "Append-only quality & RM 6 cost-impact log recording either a verified pass save (+RM 6 saved) or a reported customer mistake (-RM 6 cost).",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "orderId": {
+          "type": "string",
+          "description": "Document ID of the associated order in /users/{userId}/orders."
+        },
+        "ticketNumber": {
+          "type": "string",
+          "description": "Ticket number for display."
+        },
+        "outcome": {
+          "type": "string",
+          "enum": ["mistake_occurred", "caught_at_pass"],
+          "description": "Whether a mistake slipped out or was caught by the digital checklist."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["missing_item", "wrong_item", "wrong_spice_sauce", "none"],
+          "description": "Specific mistake category from the case study."
+        },
+        "orderType": {
+          "type": "string",
+          "enum": ["takeaway", "phone_takeaway", "dine_in"],
+          "description": "Channel of the associated order."
+        },
+        "costImpactRm": {
+          "type": "number",
+          "description": "RM 6.00 standard cost per mistake."
+        },
+        "isPeakHour": {
+          "type": "boolean",
+          "description": "Whether the event occurred during the 7-9 PM peak dinner rush."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional context note."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the log entry was created."
+        }
+      },
+      "required": [
+        "userId",
+        "orderId",
+        "ticketNumber",
+        "outcome",
+        "category",
+        "orderType",
+        "costImpactRm",
+        "isPeakHour",
+        "note",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/OrderRecord" },
+      "description": "Restaurant owner's digital kitchen pass orders."
+    },
+    "/users/{userId}/menu_items/{menuItemId}": {
+      "schema": { "$ref": "#/entities/QuickMenuItem" },
+      "description": "Customizable top-10 quick-tap menu items."
+    },
+    "/users/{userId}/mistake_logs/{logId}": {
+      "schema": { "$ref": "#/entities/MistakeLog" },
+      "description": "Append-only mistake & RM 6 savings audit trail linked to orders."
+    }
+  }
+}

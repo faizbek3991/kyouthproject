@@ -1,0 +1,163 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // 3. Domain Validation Helpers
+    function isValidOrder(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.ticketNumber is string && data.ticketNumber.size() >= 1 && data.ticketNumber.size() <= 24 &&
+             data.orderType in ['takeaway', 'phone_takeaway', 'dine_in'] &&
+             data.tableOrPhone is string && data.tableOrPhone.size() <= 64 &&
+             data.status in ['queued', 'cooking', 'packed', 'completed'] &&
+             data.items is list && data.items.size() >= 1 && data.items.size() <= 20 &&
+             data.items[0] is map &&
+             data.totalRm is number && data.totalRm >= 0 && data.totalRm <= 100000 &&
+             data.isPeakHour is bool &&
+             data.customerNote is string && data.customerNote.size() <= 200;
+    }
+
+    function isValidMenuItem(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+             data.category in ['Mains', 'Noodles', 'Sides', 'Drinks'] &&
+             data.priceRm is number && data.priceRm >= 0 && data.priceRm <= 5000 &&
+             data.defaultSpice in ['No Chili', 'Mild', 'Standard', 'Extra Pedas'] &&
+             data.defaultSauce in ['Standard', 'Sambal Separate', 'Extra Gravy', 'No Sauce'] &&
+             data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 1000 &&
+             data.isTopTen is bool;
+    }
+
+    function isValidMistakeLog(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.orderId is string && isValidId(data.orderId) &&
+             data.ticketNumber is string && data.ticketNumber.size() >= 1 && data.ticketNumber.size() <= 24 &&
+             data.outcome in ['mistake_occurred', 'caught_at_pass'] &&
+             data.category in ['missing_item', 'wrong_item', 'wrong_spice_sauce', 'none'] &&
+             data.orderType in ['takeaway', 'phone_takeaway', 'dine_in'] &&
+             data.costImpactRm is number && data.costImpactRm >= 0 && data.costImpactRm <= 1000 &&
+             data.isPeakHour is bool &&
+             data.note is string && data.note.size() <= 200;
+    }
+
+    // 4. User-Scoped Collections
+    match /users/{userId} {
+      match /orders/{orderId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(orderId) &&
+                         isValidOrder(incoming(), userId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'ticketNumber', 'orderType', 'tableOrPhone',
+                           'status', 'items', 'totalRm', 'isPeakHour', 'customerNote',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'ticketNumber', 'orderType', 'tableOrPhone',
+                           'status', 'items', 'totalRm', 'isPeakHour', 'customerNote',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().status == 'queued' &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time;
+
+        allow update: if isOwner(userId) &&
+                         isValidId(orderId) &&
+                         isValidOrder(incoming(), userId) &&
+                         existing().status != 'completed' &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly(['items', 'status', 'updatedAt']) ||
+                           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+                         );
+
+        allow delete: if isOwner(userId) &&
+                         isValidId(orderId) &&
+                         existing().status == 'queued';
+      }
+
+      match /menu_items/{menuItemId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(menuItemId) &&
+                         isValidMenuItem(incoming(), userId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'name', 'category', 'priceRm',
+                           'defaultSpice', 'defaultSauce', 'sortOrder', 'isTopTen',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'name', 'category', 'priceRm',
+                           'defaultSpice', 'defaultSauce', 'sortOrder', 'isTopTen',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time;
+
+        allow update: if isOwner(userId) &&
+                         isValidId(menuItemId) &&
+                         isValidMenuItem(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'name', 'category', 'priceRm', 'defaultSpice', 'defaultSauce',
+                           'sortOrder', 'isTopTen', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(menuItemId);
+      }
+
+      match /mistake_logs/{logId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(logId) &&
+                         isValidMistakeLog(incoming(), userId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'orderId', 'ticketNumber', 'outcome',
+                           'category', 'orderType', 'costImpactRm', 'isPeakHour',
+                           'note', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'orderId', 'ticketNumber', 'outcome',
+                           'category', 'orderType', 'costImpactRm', 'isPeakHour',
+                           'note', 'createdAt'
+                         ]) &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         exists(/databases/$(database)/documents/users/$(userId)/orders/$(incoming().orderId));
+
+        allow update, delete: if false;
+      }
+    }
+  }
+}
